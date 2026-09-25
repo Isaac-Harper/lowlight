@@ -36,7 +36,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
 
         let saved = UserDefaults.standard.object(forKey: "position") as? Double
-        if let saved, case .sub = Setting(position: saved) {
+        if let saved {
             dimmer.apply(Setting(position: saved))
         }
         show(currentSetting)
