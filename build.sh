@@ -6,6 +6,8 @@ APP="$ROOT/Lowlight.app"
 BIN_NAME="Lowlight"
 BUNDLE_ID="dev.isaacharper.lowlight"
 IDENTITY="${LOWLIGHT_SIGN_IDENTITY:-}"
+VERSION="${LOWLIGHT_VERSION:-0.1.0}"
+BUILD="$(git -C "$ROOT" rev-list --count HEAD 2>/dev/null || echo 1)"
 
 echo "==> Building (release)"
 cd "$ROOT"
@@ -17,6 +19,7 @@ pkill -x "$BIN_NAME" || true
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Library/LaunchAgents"
 cp "$BIN" "$APP/Contents/MacOS/$BIN_NAME"
+cp "$ROOT/Resources/AppIcon.icns" "$APP/Contents/Resources/"
 
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -29,9 +32,10 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundleExecutable</key><string>$BIN_NAME</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
-    <key>CFBundleShortVersionString</key><string>0.1.0</string>
-    <key>CFBundleVersion</key><string>1</string>
+    <key>CFBundleShortVersionString</key><string>$VERSION</string>
+    <key>CFBundleVersion</key><string>$BUILD</string>
     <key>LSMinimumSystemVersion</key><string>26.0</string>
+    <key>CFBundleIconFile</key><string>AppIcon</string>
     <key>LSUIElement</key><true/>
 </dict>
 </plist>
@@ -62,7 +66,9 @@ else
     echo "==> Signing ad-hoc"
     SIGN_AS="-"
 fi
-codesign --force --options runtime --timestamp=none --sign "$SIGN_AS" "$APP"
+TIMESTAMP="--timestamp=none"
+[[ "$SIGN_AS" == "Developer ID Application"* ]] && TIMESTAMP="--timestamp"
+codesign --force --options runtime "$TIMESTAMP" --sign "$SIGN_AS" "$APP"
 codesign --verify --strict "$APP"
 
 echo "==> Done: $APP"
