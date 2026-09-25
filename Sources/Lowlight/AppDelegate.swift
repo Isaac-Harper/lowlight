@@ -43,6 +43,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        UserDefaults.standard.set(currentSetting.position, forKey: "position")
         dimmer.releaseToFloor()
     }
 
@@ -81,7 +82,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func sliderMoved() {
         let setting = Setting(position: slider.doubleValue)
         valueLabel.stringValue = setting.label
-        guard setting != dimmer.setting else { return }
+        guard setting != currentSetting else { return }
         dimmer.apply(setting)
         UserDefaults.standard.set(setting.position, forKey: "position")
     }

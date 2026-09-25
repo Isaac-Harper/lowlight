@@ -10,7 +10,7 @@ if CommandLine.arguments.contains("--enable-login") ||
 
 guard let backlight = Backlight() else {
     print("No controllable keyboard backlight (needs an Apple Silicon MacBook).")
-    exit(1)
+    exit(0)
 }
 
 if CommandLine.arguments.contains("--duty") {

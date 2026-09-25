@@ -46,7 +46,6 @@ final class Dimmer {
     private static let stepFractions: [Double] = [2, 4, 7, 11, 15, 20, 26, 32, 39, 46].map { $0 / 54 }
 
     private static let approachMs = 400.0
-    private static let slowestFadeMs = 65_535
 
     private enum Motion { case none, fastDown, fastUp, slowDown }
 
@@ -56,7 +55,8 @@ final class Dimmer {
 
     private var timer: Timer?
     private var motion: Motion = .none
-    private var lastTarget = Backlight.floorBrightness
+    private var activity: NSObjectProtocol?
+    private var offSince: Date?
     private var targetDuty = 0
     private var suspended = false
 
@@ -104,10 +104,12 @@ final class Dimmer {
                 backlight.set(Backlight.floorBrightness)
                 needsFloorReading = true
                 floorCandidate = nil
-                lastTarget = Backlight.floorBrightness
                 motion = .none
             }
             targetDuty = duty(for: step)
+            if activity == nil {
+                activity = ProcessInfo.processInfo.beginActivity(options: .userInitiatedAllowingIdleSystemSleep, reason: "Holding keyboard backlight")
+            }
             if timer == nil { schedule(0.25) }
         }
     }
@@ -134,10 +136,19 @@ final class Dimmer {
         }
     }
 
+    private func takeOver(_ taken: Setting) {
+        setting = taken
+        stop()
+        onUserTakeover?(taken)
+    }
+
     private func stop() {
         timer?.invalidate()
         timer = nil
         motion = .none
+        offSince = nil
+        if let activity { ProcessInfo.processInfo.endActivity(activity) }
+        activity = nil
     }
 
     private func schedule(_ seconds: TimeInterval) {
@@ -154,24 +165,28 @@ final class Dimmer {
         guard case .sub(let step) = setting else { return }
 
         let stored = backlight.brightness
-        if abs(stored - lastTarget) > 0.0001 && abs(stored - Backlight.floorBrightness) > 0.0001 {
-            let taken: Setting = stored <= 0 ? .off : .normal(stored)
-            setting = taken
-            stop()
-            onUserTakeover?(taken)
+        if abs(stored - backlight.lastTarget) > 0.0001 && abs(stored - Backlight.floorBrightness) > 0.0001 {
+            takeOver(stored <= 0 ? .off : .normal(stored))
             return
         }
 
         guard let d = backlight.duty else {
-            if (motion == .fastDown || motion == .slowDown) && !backlight.isIdleDimmed {
-                fade(.fastUp, to: Backlight.floorBrightness, ms: 1_000)
-                schedule(0.1)
-            } else {
+            if backlight.isIdleDimmed {
+                offSince = nil
                 motion = .none
                 schedule(0.5)
+            } else if motion == .fastDown || motion == .fastUp {
+                fade(.fastUp, to: Backlight.floorBrightness, ms: 1_000)
+                schedule(0.1)
+            } else if let since = offSince, Date().timeIntervalSince(since) > 1 {
+                takeOver(.off)
+            } else {
+                if offSince == nil { offSince = Date() }
+                schedule(0.3)
             }
             return
         }
+        offSince = nil
 
         if needsFloorReading {
             guard d == floorCandidate else {
@@ -180,7 +195,7 @@ final class Dimmer {
                 return
             }
             needsFloorReading = false
-            floorDuty = d
+            if d > 10 { floorDuty = d }
             targetDuty = duty(for: step)
         }
 
@@ -195,19 +210,13 @@ final class Dimmer {
             fade(.fastUp, to: Backlight.floorBrightness, ms: ms)
             schedule(0.1)
         } else {
-            if motion != .slowDown { fade(.slowDown, to: 0, ms: Dimmer.slowestFadeMs) }
+            if motion != .slowDown { fade(.slowDown, to: 0, ms: Backlight.slowestFadeMs) }
             schedule(0.3)
         }
     }
 
-    // A fade toward the target already being faded to is ignored, so brake first.
     private func fade(_ m: Motion, to value: Float, ms: Int) {
-        if value == lastTarget && motion != .none {
-            let away: Float = value == 0 ? Backlight.floorBrightness : 0
-            backlight.fade(to: away, ms: Dimmer.slowestFadeMs, commit: false)
-        }
-        backlight.fade(to: value, ms: min(max(ms, 20), Dimmer.slowestFadeMs), commit: false)
+        backlight.fade(to: value, ms: min(max(ms, 20), Backlight.slowestFadeMs), commit: false)
         motion = m
-        lastTarget = value
     }
 }

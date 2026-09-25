@@ -3,6 +3,7 @@ import IOKit
 
 final class Backlight {
     static let floorBrightness: Float = 0.001
+    static let slowestFadeMs = 65_535
 
     private typealias GetF = @convention(c) (AnyObject, Selector, UInt64) -> Float
     private typealias GetD = @convention(c) (AnyObject, Selector, UInt64) -> Double
@@ -14,6 +15,7 @@ final class Backlight {
     private let setFade: SetFade
     private let getIdleDimTime: GetD
     private let pwm: io_service_t
+    private(set) var lastTarget: Float = 0
 
     private let selBrightness = NSSelectorFromString("brightnessForKeyboard:")
     private let selFade = NSSelectorFromString("setBrightness:fadeSpeed:commit:forKeyboard:")
@@ -37,14 +39,21 @@ final class Backlight {
         self.setFade = unsafeBitCast(client.method(for: selFade), to: SetFade.self)
         self.getIdleDimTime = unsafeBitCast(client.method(for: selIdleDimTime), to: GetD.self)
         self.pwm = pwm
+        self.lastTarget = brightness
     }
 
     deinit { IOObjectRelease(pwm) }
 
     var brightness: Float { getBrightness(client, selBrightness, keyboard) }
 
+    // A fade toward the target already being faded to is ignored, so brake first.
     func fade(to value: Float, ms: Int, commit: Bool) {
+        if value == lastTarget {
+            let away: Float = value == 0 ? Backlight.floorBrightness : 0
+            _ = setFade(client, selFade, away, Int32(Backlight.slowestFadeMs), false, keyboard)
+        }
         _ = setFade(client, selFade, value, Int32(clamping: ms), commit, keyboard)
+        lastTarget = value
     }
 
     func set(_ value: Float) { fade(to: value, ms: 0, commit: true) }
@@ -61,7 +70,8 @@ final class Backlight {
         guard hid != 0,
               let ns = IORegistryEntryCreateCFProperty(hid, "HIDIdleTime" as CFString, kCFAllocatorDefault, 0)?
                 .takeRetainedValue() as? NSNumber else { return false }
-        return ns.doubleValue / 1e9 >= getIdleDimTime(client, selIdleDimTime, keyboard) - 1
+        let dimAfter = getIdleDimTime(client, selIdleDimTime, keyboard)
+        return dimAfter > 0 && ns.doubleValue / 1e9 >= dimAfter - 1
     }
 
     private func property(_ key: String) -> Any? {

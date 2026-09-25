@@ -13,7 +13,10 @@ IDENTITY="$(security find-identity -v -p codesigning | grep -o '"Developer ID Ap
 xcrun notarytool history --keychain-profile "$PROFILE" >/dev/null 2>&1 \
     || { echo "No notary credentials saved as '$PROFILE'. Run: xcrun notarytool store-credentials $PROFILE"; exit 1; }
 [ -z "$(git status --porcelain)" ] || { echo "Commit or stash changes first."; exit 1; }
+gh auth status >/dev/null 2>&1 || { echo "gh is not logged in. Run: gh auth login"; exit 1; }
+git fetch -q --tags origin
 ! git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null || { echo "Tag v$VERSION already exists."; exit 1; }
+[ "$(git rev-parse HEAD)" = "$(git rev-parse @{u})" ] || { echo "Push main first."; exit 1; }
 
 LOWLIGHT_SIGN_IDENTITY="$IDENTITY" LOWLIGHT_VERSION="$VERSION" ./build.sh
 
@@ -29,6 +32,5 @@ rm -f "$ZIP"
 ditto -c -k --keepParent "$APP" "$ZIP"
 
 echo "==> Publishing v$VERSION"
-git tag "v$VERSION"
-git push origin "v$VERSION"
-gh release create "v$VERSION" "$ZIP" --title "Lowlight $VERSION" --generate-notes
+gh release create "v$VERSION" "$ZIP" --target "$(git rev-parse HEAD)" --title "Lowlight $VERSION" --generate-notes
+git fetch -q --tags origin

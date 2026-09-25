@@ -59,7 +59,9 @@ cat > "$APP/Contents/Library/LaunchAgents/$BUNDLE_ID.plist" <<AGENTPLIST
 </plist>
 AGENTPLIST
 
-if [ -n "$IDENTITY" ] && security find-identity -v -p codesigning 2>/dev/null | grep -qF "$IDENTITY"; then
+if [ -n "$IDENTITY" ]; then
+    IDENTITIES="$(security find-identity -v -p codesigning)"
+    grep -qF "$IDENTITY" <<< "$IDENTITIES" || { echo "Signing identity not found: $IDENTITY"; exit 1; }
     echo "==> Signing with $IDENTITY"
     SIGN_AS="$IDENTITY"
 else
