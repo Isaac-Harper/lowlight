@@ -63,15 +63,16 @@ final class Updater {
 
     private func finish(_ latest: Latest?, current: String, manual: Bool, offline: Bool) {
         guard let latest else {
-            if manual {
-                alert("Couldn't Check for Updates", offline
-                    ? "Check your internet connection and try again."
-                    : "GitHub couldn't be reached right now. Try again later.")
-            } else if retry == nil {
+            if retry == nil {
                 retry = Timer.scheduledTimer(withTimeInterval: 30 * 60, repeats: false) { [weak self] _ in
                     self?.retry = nil
                     self?.check(manual: false)
                 }
+            }
+            if manual {
+                alert("Couldn't Check for Updates", offline
+                    ? "Check your internet connection and try again."
+                    : "GitHub couldn't be reached right now. Try again later.")
             }
             return
         }
