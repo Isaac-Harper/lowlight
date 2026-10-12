@@ -32,7 +32,7 @@ enum Setting: Equatable {
     var label: String {
         switch self {
         case .off: return "Off"
-        case .sub(let step): return "Below minimum \(step)/\(Dimmer.subSteps)"
+        case .sub(let step): return "Below min \(step)/\(Dimmer.subSteps)"
         case .normal(let b): return "\(max(1, Int((b * 100).rounded())))%"
         }
     }
@@ -163,6 +163,13 @@ final class Dimmer {
     private func tick() {
         timer = nil
         guard case .sub(let step) = setting else { return }
+
+        if backlight.isLidClosed {
+            offSince = nil
+            motion = .none
+            schedule(0.5)
+            return
+        }
 
         let stored = backlight.brightness
         if abs(stored - backlight.lastTarget) > 0.0001 && abs(stored - Backlight.floorBrightness) > 0.0001 {

@@ -15,7 +15,7 @@ Download the latest zip from [Releases](https://github.com/Isaac-Harper/lowlight
 
 ## Updates
 
-Lowlight checks GitHub once a day for a new version. Nothing else is sent.
+Lowlight checks GitHub for a new version at launch and once a day. The request carries only the app version.
 
 ## Compatibility
 

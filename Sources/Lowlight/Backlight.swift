@@ -15,6 +15,7 @@ final class Backlight {
     private let setFade: SetFade
     private let getIdleDimTime: GetD
     private let pwm: io_service_t
+    private let rootDomain: io_service_t
     private(set) var lastTarget: Float = 0
 
     private let selBrightness = NSSelectorFromString("brightnessForKeyboard:")
@@ -39,10 +40,14 @@ final class Backlight {
         self.setFade = unsafeBitCast(client.method(for: selFade), to: SetFade.self)
         self.getIdleDimTime = unsafeBitCast(client.method(for: selIdleDimTime), to: GetD.self)
         self.pwm = pwm
+        self.rootDomain = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceNameMatching("IOPMrootDomain"))
         self.lastTarget = brightness
     }
 
-    deinit { IOObjectRelease(pwm) }
+    deinit {
+        IOObjectRelease(pwm)
+        IOObjectRelease(rootDomain)
+    }
 
     var brightness: Float { getBrightness(client, selBrightness, keyboard) }
 
@@ -72,6 +77,11 @@ final class Backlight {
                 .takeRetainedValue() as? NSNumber else { return false }
         let dimAfter = getIdleDimTime(client, selIdleDimTime, keyboard)
         return dimAfter > 0 && ns.doubleValue / 1e9 >= dimAfter - 1
+    }
+
+    var isLidClosed: Bool {
+        rootDomain != 0 && (IORegistryEntryCreateCFProperty(rootDomain, "AppleClamshellState" as CFString, kCFAllocatorDefault, 0)?
+            .takeRetainedValue() as? Bool) == true
     }
 
     private func property(_ key: String) -> Any? {

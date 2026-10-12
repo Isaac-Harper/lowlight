@@ -22,6 +22,7 @@ final class Updater {
     var onUpdate: ((Release) -> Void)?
     private var timer: Timer?
     private var checking = false
+    private var pendingManual = false
 
     func start() {
         guard Self.currentVersion != nil else { return }
@@ -32,27 +33,40 @@ final class Updater {
     }
 
     func check(manual: Bool) {
-        guard let current = Self.currentVersion, !checking else { return }
+        guard let current = Self.currentVersion else { return }
+        guard !checking else {
+            if manual { pendingManual = true }
+            return
+        }
         checking = true
         var request = URLRequest(url: Links.latestRelease, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 15)
         request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
-        URLSession.shared.dataTask(with: request) { data, response, _ in
+        request.setValue("Lowlight/\(current)", forHTTPHeaderField: "User-Agent")
+        URLSession.shared.dataTask(with: request) { data, response, error in
             var latest: Latest?
             if let data, (response as? HTTPURLResponse)?.statusCode == 200 {
                 let decoder = JSONDecoder()
                 decoder.keyDecodingStrategy = .convertFromSnakeCase
                 latest = try? decoder.decode(Latest.self, from: data)
             }
+            let offline = error is URLError
             DispatchQueue.main.async { [weak self] in
-                self?.checking = false
-                self?.finish(latest, current: current, manual: manual)
+                guard let self else { return }
+                let manual = manual || pendingManual
+                checking = false
+                pendingManual = false
+                finish(latest, current: current, manual: manual, offline: offline)
             }
         }.resume()
     }
 
-    private func finish(_ latest: Latest?, current: String, manual: Bool) {
+    private func finish(_ latest: Latest?, current: String, manual: Bool, offline: Bool) {
         guard let latest else {
-            if manual { alert("Couldn't Check for Updates", "Check your internet connection and try again.") }
+            if manual {
+                alert("Couldn't Check for Updates", offline
+                    ? "Check your internet connection and try again."
+                    : "GitHub couldn't be reached right now. Try again later.")
+            }
             return
         }
         let version = latest.tagName.hasPrefix("v") ? String(latest.tagName.dropFirst()) : latest.tagName
