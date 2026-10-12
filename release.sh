@@ -2,6 +2,7 @@
 set -euo pipefail
 
 VERSION="${1:?usage: ./release.sh <version>, e.g. ./release.sh 0.1.0}"
+[[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Version must be X.Y.Z, without a leading v."; exit 1; }
 PROFILE="${LOWLIGHT_NOTARY_PROFILE:-lowlight-notary}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP="$ROOT/Lowlight.app"
