@@ -6,7 +6,7 @@ APP="$ROOT/Lowlight.app"
 BIN_NAME="Lowlight"
 BUNDLE_ID="dev.isaacharper.lowlight"
 IDENTITY="${LOWLIGHT_SIGN_IDENTITY:-}"
-VERSION="${LOWLIGHT_VERSION:-0.1.0}"
+VERSION="${LOWLIGHT_VERSION:-1.0.0}"
 BUILD="$(git -C "$ROOT" rev-list --count HEAD 2>/dev/null || echo 1)"
 
 echo "==> Building (release)"
@@ -37,6 +37,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>LSMinimumSystemVersion</key><string>26.0</string>
     <key>CFBundleIconFile</key><string>AppIcon</string>
     <key>LSUIElement</key><true/>
+    <key>NSHumanReadableCopyright</key><string>Copyright (c) 2026 Isaac Harper. MIT License.</string>
 </dict>
 </plist>
 PLIST

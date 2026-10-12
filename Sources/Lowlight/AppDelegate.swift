@@ -6,6 +6,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let slider = NSSlider(value: 0, minValue: 0, maxValue: 1, target: nil, action: nil)
     private let valueLabel = NSTextField(labelWithString: "")
     private var loginItem: NSMenuItem!
+    private var updateItem: NSMenuItem!
+    private let updater = Updater()
+    private var releaseURL: URL?
 
     init(dimmer: Dimmer) {
         self.dimmer = dimmer
@@ -22,12 +25,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         sliderItem.view = makeSliderView()
         menu.addItem(sliderItem)
         menu.addItem(.separator())
-        loginItem = NSMenuItem(title: "Open at Login", action: #selector(toggleLogin), keyEquivalent: "")
-        loginItem.target = self
-        menu.addItem(loginItem)
-        let quit = NSMenuItem(title: "Quit Lowlight", action: #selector(quit), keyEquivalent: "q")
-        quit.target = self
-        menu.addItem(quit)
+        updateItem = addItem(to: menu, "", #selector(openRelease))
+        updateItem.isHidden = true
+        loginItem = addItem(to: menu, "Open at Login", #selector(toggleLogin))
+        if Updater.currentVersion != nil {
+            addItem(to: menu, "Check for Updates\u{2026}", #selector(checkForUpdates))
+        }
+        addItem(to: menu, "Report an Issue\u{2026}", #selector(reportIssue))
+        menu.addItem(.separator())
+        if let version = Updater.currentVersion {
+            let versionItem = NSMenuItem(title: "Lowlight \(version)", action: nil, keyEquivalent: "")
+            versionItem.isEnabled = false
+            menu.addItem(versionItem)
+        }
+        addItem(to: menu, "Quit Lowlight", #selector(quit), key: "q")
         statusItem.menu = menu
 
         dimmer.onUserTakeover = { [weak self] setting in
@@ -40,6 +51,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             dimmer.apply(Setting(position: saved))
         }
         show(currentSetting)
+
+        updater.onUpdate = { [weak self] release in
+            self?.releaseURL = release.url
+            self?.updateItem.title = "Update Available: \(release.version)"
+            self?.updateItem.isHidden = false
+        }
+        updater.start()
+
+        if saved != nil { UserDefaults.standard.set(true, forKey: "didOnboard") }
+        if !UserDefaults.standard.bool(forKey: "didOnboard") {
+            DispatchQueue.main.async { self.onboard() }
+        }
+    }
+
+    private func onboard() {
+        UserDefaults.standard.set(true, forKey: "didOnboard")
+        NSApp.activate()
+        let alert = NSAlert()
+        alert.messageText = "Lowlight is in your menu bar"
+        alert.informativeText = "Click the moon icon in the menu bar to dim the keyboard backlight below the macOS minimum."
+        alert.showsSuppressionButton = true
+        alert.suppressionButton?.title = "Open at Login"
+        alert.suppressionButton?.state = .on
+        alert.runModal()
+        LoginItem.setEnabled(alert.suppressionButton?.state == .on)
+        DispatchQueue.main.async { self.statusItem.button?.performClick(nil) }
+    }
+
+    @discardableResult
+    private func addItem(to menu: NSMenu, _ title: String, _ action: Selector, key: String = "") -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: key)
+        item.target = self
+        menu.addItem(item)
+        return item
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -89,6 +134,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func toggleLogin() {
         LoginItem.setEnabled(!LoginItem.isEnabled)
+    }
+
+    @objc private func openRelease() {
+        if let releaseURL { NSWorkspace.shared.open(releaseURL) }
+    }
+
+    @objc private func checkForUpdates() {
+        updater.check(manual: true)
+    }
+
+    @objc private func reportIssue() {
+        NSWorkspace.shared.open(Links.newIssue)
     }
 
     @objc private func quit() {

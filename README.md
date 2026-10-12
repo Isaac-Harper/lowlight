@@ -13,6 +13,14 @@ A menu bar slider with ten steps under the macOS minimum and the normal range ab
 
 Download the latest zip from [Releases](https://github.com/Isaac-Harper/lowlight/releases/latest), unzip it, and move `Lowlight.app` to Applications.
 
+## Updates
+
+Lowlight checks GitHub once a day for a new version. Nothing else is sent.
+
+## Compatibility
+
+Tested on an M5 MacBook Air. Other Apple Silicon MacBooks should work. If yours doesn't, [open an issue](https://github.com/Isaac-Harper/lowlight/issues/new/choose) with your model.
+
 ## Build
 
 ```sh

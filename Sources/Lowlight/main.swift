@@ -10,6 +10,20 @@ if CommandLine.arguments.contains("--enable-login") ||
 
 guard let backlight = Backlight() else {
     print("No controllable keyboard backlight (needs an Apple Silicon MacBook).")
+    if !CommandLine.arguments.contains("--duty") {
+        let app = NSApplication.shared
+        app.setActivationPolicy(.accessory)
+        app.activate()
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "Lowlight can't control this keyboard"
+        alert.informativeText = "Lowlight needs an Apple Silicon MacBook with a built-in backlit keyboard. If this Mac has one, a macOS update may have changed the private API it uses."
+        alert.addButton(withTitle: "Quit")
+        alert.addButton(withTitle: "Report an Issue")
+        if alert.runModal() == .alertSecondButtonReturn {
+            NSWorkspace.shared.open(Links.newIssue)
+        }
+    }
     exit(0)
 }
 
