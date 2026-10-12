@@ -26,7 +26,8 @@ final class Backlight {
         guard dlopen("/System/Library/PrivateFrameworks/CoreBrightness.framework/CoreBrightness", RTLD_NOW) != nil,
               let cls = NSClassFromString("KeyboardBrightnessClient") as? NSObject.Type else { return nil }
         let client = cls.init()
-        guard let ids = client.perform(NSSelectorFromString("copyKeyboardBacklightIDs"))?
+        guard client.responds(to: NSSelectorFromString("copyKeyboardBacklightIDs")),
+              let ids = client.perform(NSSelectorFromString("copyKeyboardBacklightIDs"))?
                 .takeRetainedValue() as? [NSNumber],
               let first = ids.first,
               client.responds(to: selBrightness), client.responds(to: selFade),
