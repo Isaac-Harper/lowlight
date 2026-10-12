@@ -1,4 +1,5 @@
 import AppKit
+import ServiceManagement
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let dimmer: Dimmer
@@ -6,6 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let slider = NSSlider(value: 0, minValue: 0, maxValue: 1, target: nil, action: nil)
     private let valueLabel = NSTextField(labelWithString: "")
     private var loginItem: NSMenuItem!
+    private var levelItems: [NSMenuItem] = []
     private var updateItem: NSMenuItem!
     private let updater = Updater()
     private var releaseURL: URL?
@@ -24,6 +26,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let sliderItem = NSMenuItem()
         sliderItem.view = makeSliderView()
         menu.addItem(sliderItem)
+        let levels = NSMenu()
+        for setting in [Setting.off] + (1...Dimmer.subSteps).map(Setting.sub) {
+            let item = addItem(to: levels, setting.label, #selector(pickLevel))
+            item.representedObject = setting.position
+            levelItems.append(item)
+        }
+        menu.addItem(withTitle: "Set Level", action: nil, keyEquivalent: "").submenu = levels
         menu.addItem(.separator())
         updateItem = addItem(to: menu, "", #selector(openRelease))
         updateItem.isHidden = true
@@ -60,8 +69,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         updater.start()
 
-        if saved != nil { UserDefaults.standard.set(true, forKey: "didOnboard") }
-        if !UserDefaults.standard.bool(forKey: "didOnboard") {
+        let defaults = UserDefaults.standard
+        if saved != nil { defaults.set(true, forKey: "didOnboard") }
+        if !defaults.bool(forKey: "didOnboard") ||
+            (isInstalled && defaults.bool(forKey: "needsLoginOffer") && !LoginItem.isEnabled) {
             DispatchQueue.main.async { self.onboard() }
         }
     }
@@ -73,10 +84,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func onboard() {
         UserDefaults.standard.set(true, forKey: "didOnboard")
+        UserDefaults.standard.set(!isInstalled, forKey: "needsLoginOffer")
         NSApp.activate()
         let alert = NSAlert()
         alert.messageText = "Lowlight is in your menu bar"
-        alert.informativeText = "Click the moon icon in the menu bar to dim the keyboard backlight below the macOS minimum."
+        alert.informativeText = "Click the moon icon in the menu bar to dim the keyboard backlight below the macOS minimum. If you can't see it, open Lowlight again to show the menu."
         if isInstalled {
             alert.showsSuppressionButton = true
             alert.suppressionButton?.title = "Open at Login"
@@ -85,7 +97,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             alert.informativeText += " To open it at login, move Lowlight to Applications first."
         }
         alert.runModal()
-        if isInstalled { LoginItem.setEnabled(alert.suppressionButton?.state == .on) }
+        let login = alert.suppressionButton?.state == .on
+        if isInstalled && login != LoginItem.isEnabled { setLogin(login) }
         DispatchQueue.main.async { self.showMenu() }
     }
 
@@ -159,19 +172,46 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         slider.doubleValue = setting.position
         valueLabel.stringValue = setting.label
         slider.setAccessibilityValueDescription(setting.label)
+        markLevel(setting)
+    }
+
+    private func markLevel(_ setting: Setting) {
+        levelItems.forEach { $0.state = $0.representedObject as? Double == setting.position ? .on : .off }
     }
 
     @objc private func sliderMoved() {
         let setting = Setting(position: slider.doubleValue)
         valueLabel.stringValue = setting.label
         slider.setAccessibilityValueDescription(setting.label)
+        markLevel(setting)
         guard setting != currentSetting else { return }
         dimmer.apply(setting)
         UserDefaults.standard.set(setting.position, forKey: "position")
     }
 
+    @objc private func pickLevel(_ sender: NSMenuItem) {
+        guard let position = sender.representedObject as? Double else { return }
+        let setting = Setting(position: position)
+        dimmer.apply(setting)
+        UserDefaults.standard.set(position, forKey: "position")
+        show(setting)
+    }
+
     @objc private func toggleLogin() {
-        LoginItem.setEnabled(!LoginItem.isEnabled)
+        setLogin(!LoginItem.isEnabled)
+    }
+
+    private func setLogin(_ enabled: Bool) {
+        guard !LoginItem.setEnabled(enabled) else { return }
+        NSApp.activate()
+        let alert = NSAlert()
+        alert.messageText = "Couldn't Turn \(enabled ? "On" : "Off") Open at Login"
+        alert.informativeText = "\(enabled ? "Add" : "Remove") Lowlight in System Settings > General > Login Items."
+        alert.addButton(withTitle: "Open System Settings")
+        alert.addButton(withTitle: "OK")
+        if alert.runModal() == .alertFirstButtonReturn {
+            SMAppService.openSystemSettingsLoginItems()
+        }
     }
 
     @objc private func openRelease() {
