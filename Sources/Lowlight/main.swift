@@ -22,6 +22,9 @@ guard let backlight = Backlight() else {
         if loginOn {
             alert.informativeText += " Open at Login has been turned off."
         }
+        if let version = Updater.currentVersion {
+            alert.informativeText += "\n\nLowlight \(version)"
+        }
         alert.addButton(withTitle: "Quit")
         alert.addButton(withTitle: "Report an Issue")
         if alert.runModal() == .alertSecondButtonReturn {
@@ -53,8 +56,11 @@ app.delegate = delegate
 app.setActivationPolicy(.accessory)
 
 signal(SIGTERM, SIG_IGN)
-let sigterm = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .main)
-sigterm.setEventHandler { NSApp.terminate(nil) }
+let sigterm = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .global())
+sigterm.setEventHandler {
+    RunLoop.main.perform(inModes: [.common]) { NSApp.terminate(nil) }
+    CFRunLoopWakeUp(CFRunLoopGetMain())
+}
 sigterm.resume()
 
 app.run()

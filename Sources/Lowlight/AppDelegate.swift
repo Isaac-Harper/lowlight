@@ -28,7 +28,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(sliderItem)
         let levels = NSMenu()
         for setting in [Setting.off] + (1...Dimmer.subSteps).map(Setting.sub) {
-            let item = addItem(to: levels, setting.label, #selector(pickLevel))
+            let item = addItem(to: levels, setting.menuTitle, #selector(pickLevel))
             item.representedObject = setting.position
             levelItems.append(item)
         }
@@ -57,7 +57,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
 
         let saved = UserDefaults.standard.object(forKey: "position") as? Double
-        if let saved {
+        if let saved, case .sub = Setting(position: saved) {
             dimmer.apply(Setting(position: saved))
         }
         show(currentSetting)
@@ -171,7 +171,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func show(_ setting: Setting) {
         slider.doubleValue = setting.position
         valueLabel.stringValue = setting.label
-        slider.setAccessibilityValueDescription(setting.label)
+        slider.setAccessibilityValueDescription(setting.spokenLabel)
         markLevel(setting)
     }
 
@@ -182,7 +182,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func sliderMoved() {
         let setting = Setting(position: slider.doubleValue)
         valueLabel.stringValue = setting.label
-        slider.setAccessibilityValueDescription(setting.label)
+        slider.setAccessibilityValueDescription(setting.spokenLabel)
         markLevel(setting)
         guard setting != currentSetting else { return }
         dimmer.apply(setting)
@@ -206,7 +206,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         NSApp.activate()
         let alert = NSAlert()
         alert.messageText = "Couldn't Turn \(enabled ? "On" : "Off") Open at Login"
-        alert.informativeText = "\(enabled ? "Add" : "Remove") Lowlight in System Settings > General > Login Items."
+        alert.informativeText = "\(enabled ? "Add" : "Remove") Lowlight in System Settings > General > Login Items & Extensions."
         alert.addButton(withTitle: "Open System Settings")
         alert.addButton(withTitle: "OK")
         if alert.runModal() == .alertFirstButtonReturn {

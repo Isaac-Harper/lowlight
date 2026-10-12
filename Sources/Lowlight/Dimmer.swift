@@ -36,6 +36,16 @@ enum Setting: Equatable {
         case .normal(let b): return "\(max(1, Int((b * 100).rounded())))%"
         }
     }
+
+    var menuTitle: String {
+        if case .sub(let step) = self { return "Below Minimum \(step)/\(Dimmer.subSteps)" }
+        return label
+    }
+
+    var spokenLabel: String {
+        if case .sub(let step) = self { return "Below minimum, step \(step) of \(Dimmer.subSteps)" }
+        return label
+    }
 }
 
 // macOS clamps nonzero brightness to a PWM floor, but fades interpolate the raw duty
