@@ -18,13 +18,18 @@ guard let backlight = Backlight() else {
         alert.alertStyle = .warning
         alert.messageText = "Lowlight can't control this keyboard"
         alert.informativeText = "Lowlight needs an Apple Silicon MacBook with a built-in backlit keyboard. If this Mac has one, a macOS update may have changed the private API it uses."
-        if LoginItem.isEnabled && LoginItem.setEnabled(false) {
+        let loginOn = LoginItem.isEnabled || LoginItem.hasLegacyAgent
+        if loginOn {
             alert.informativeText += " Open at Login has been turned off."
         }
         alert.addButton(withTitle: "Quit")
         alert.addButton(withTitle: "Report an Issue")
         if alert.runModal() == .alertSecondButtonReturn {
             NSWorkspace.shared.open(Links.newIssue)
+        }
+        if loginOn {
+            LoginItem.setEnabled(false)
+            LoginItem.removeLegacyAgent()
         }
     }
     exit(0)

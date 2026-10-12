@@ -40,6 +40,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         addItem(to: menu, "Quit Lowlight", #selector(quit), key: "q")
         statusItem.menu = menu
+        LoginItem.migrateLegacyAgent()
 
         dimmer.onUserTakeover = { [weak self] setting in
             UserDefaults.standard.set(setting.position, forKey: "position")
@@ -109,12 +110,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             return
         }
         NSApp.activate()
-        let alert = NSAlert()
-        alert.messageText = "Lowlight is running"
-        alert.informativeText = "Its moon icon may be hidden behind the camera notch or turned off in System Settings > Menu Bar. Open Lowlight again any time to see this."
-        alert.addButton(withTitle: "OK")
-        alert.addButton(withTitle: "Quit Lowlight")
-        if alert.runModal() == .alertSecondButtonReturn { NSApp.terminate(nil) }
+        statusItem.menu?.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
     }
 
     @discardableResult
@@ -128,6 +124,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         UserDefaults.standard.set(currentSetting.position, forKey: "position")
         dimmer.releaseToFloor()
+        LoginItem.removeLegacyAgent()
     }
 
     func menuWillOpen(_ menu: NSMenu) {
