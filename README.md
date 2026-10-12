@@ -11,7 +11,11 @@ A menu bar slider with ten steps under the macOS minimum and the normal range ab
 
 ## Install
 
-Download the latest zip from [Releases](https://github.com/Isaac-Harper/lowlight/releases/latest), unzip it, and move `Lowlight.app` to Applications.
+```sh
+brew install --cask isaac-harper/tap/lowlight
+```
+
+Or download the latest zip from [Releases](https://github.com/Isaac-Harper/lowlight/releases/latest), unzip it, and move `Lowlight.app` to Applications.
 
 ## Updates
 

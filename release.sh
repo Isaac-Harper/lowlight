@@ -35,3 +35,12 @@ ditto -c -k --keepParent "$APP" "$ZIP"
 echo "==> Publishing v$VERSION"
 gh release create "v$VERSION" "$ZIP" --target "$(git rev-parse HEAD)" --title "Lowlight $VERSION" --generate-notes
 git fetch -q --tags origin
+
+echo "==> Updating Homebrew cask"
+SHA="$(shasum -a 256 "$ZIP" | cut -d' ' -f1)"
+TAP="$(mktemp -d)"
+gh repo clone Isaac-Harper/homebrew-tap "$TAP" -- -q
+sed -i '' -e "s/^  version \".*\"/  version \"$VERSION\"/" -e "s/^  sha256 \".*\"/  sha256 \"$SHA\"/" "$TAP/Casks/lowlight.rb"
+git -C "$TAP" commit -qam "Update lowlight to $VERSION"
+git -C "$TAP" push -q
+rm -rf "$TAP"
