@@ -21,6 +21,7 @@ final class Updater {
 
     var onUpdate: ((Release) -> Void)?
     private var timer: Timer?
+    private var retry: Timer?
     private var checking = false
     private var pendingManual = false
 
@@ -66,6 +67,11 @@ final class Updater {
                 alert("Couldn't Check for Updates", offline
                     ? "Check your internet connection and try again."
                     : "GitHub couldn't be reached right now. Try again later.")
+            } else if retry == nil {
+                retry = Timer.scheduledTimer(withTimeInterval: 30 * 60, repeats: false) { [weak self] _ in
+                    self?.retry = nil
+                    self?.check(manual: false)
+                }
             }
             return
         }
