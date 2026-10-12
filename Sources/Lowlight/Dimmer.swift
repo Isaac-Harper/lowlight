@@ -166,7 +166,7 @@ final class Dimmer {
 
         if backlight.isLidClosed {
             offSince = nil
-            motion = .none
+            motion = .fastUp
             schedule(0.5)
             return
         }
