@@ -8,6 +8,8 @@ final class Backlight {
     private typealias GetF = @convention(c) (AnyObject, Selector, UInt64) -> Float
     private typealias GetD = @convention(c) (AnyObject, Selector, UInt64) -> Double
     private typealias SetFade = @convention(c) (AnyObject, Selector, Float, Int32, Bool, UInt64) -> Bool
+    private typealias GetB = @convention(c) (AnyObject, Selector, UInt64) -> Bool
+    private typealias SetB = @convention(c) (AnyObject, Selector, Bool, UInt64) -> Bool
 
     private let client: NSObject
     private let keyboard: UInt64
@@ -21,6 +23,8 @@ final class Backlight {
     private let selBrightness = NSSelectorFromString("brightnessForKeyboard:")
     private let selFade = NSSelectorFromString("setBrightness:fadeSpeed:commit:forKeyboard:")
     private let selIdleDimTime = NSSelectorFromString("idleDimTimeForKeyboard:")
+    private let selAutoEnabled = NSSelectorFromString("isAutoBrightnessEnabledForKeyboard:")
+    private let selEnableAuto = NSSelectorFromString("enableAutoBrightness:forKeyboard:")
 
     init?() {
         guard dlopen("/System/Library/PrivateFrameworks/CoreBrightness.framework/CoreBrightness", RTLD_NOW) != nil,
@@ -83,6 +87,18 @@ final class Backlight {
     var isLidClosed: Bool {
         rootDomain != 0 && (IORegistryEntryCreateCFProperty(rootDomain, "AppleClamshellState" as CFString, kCFAllocatorDefault, 0)?
             .takeRetainedValue() as? Bool) == true
+    }
+
+    // Ambient adjustments read as a user change and break the hold, so it is paused while holding.
+    var isAutoBrightnessEnabled: Bool {
+        get {
+            guard client.responds(to: selAutoEnabled) else { return false }
+            return unsafeBitCast(client.method(for: selAutoEnabled), to: GetB.self)(client, selAutoEnabled, keyboard)
+        }
+        set {
+            guard client.responds(to: selEnableAuto) else { return }
+            _ = unsafeBitCast(client.method(for: selEnableAuto), to: SetB.self)(client, selEnableAuto, newValue, keyboard)
+        }
     }
 
     private func property(_ key: String) -> Any? {

@@ -76,8 +76,14 @@ final class Dimmer {
     private var needsFloorReading = false
     private var floorCandidate: Int?
 
+    private var pausedAutoBrightness: Bool {
+        get { UserDefaults.standard.bool(forKey: "pausedAutoBrightness") }
+        set { UserDefaults.standard.set(newValue, forKey: "pausedAutoBrightness") }
+    }
+
     init(backlight: Backlight) {
         self.backlight = backlight
+        resumeAutoBrightness()
         let nc = NSWorkspace.shared.notificationCenter
         nc.addObserver(forName: NSWorkspace.screensDidSleepNotification, object: nil, queue: .main) { [weak self] _ in
             self?.suspend(true)
@@ -111,6 +117,7 @@ final class Dimmer {
             backlight.set(b)
         case .sub(let step):
             if !wasSub {
+                pauseAutoBrightness()
                 backlight.set(Backlight.floorBrightness)
                 needsFloorReading = true
                 floorCandidate = nil
@@ -152,7 +159,20 @@ final class Dimmer {
         onUserTakeover?(taken)
     }
 
+    private func pauseAutoBrightness() {
+        guard !pausedAutoBrightness, backlight.isAutoBrightnessEnabled else { return }
+        backlight.isAutoBrightnessEnabled = false
+        pausedAutoBrightness = true
+    }
+
+    private func resumeAutoBrightness() {
+        guard pausedAutoBrightness else { return }
+        backlight.isAutoBrightnessEnabled = true
+        pausedAutoBrightness = false
+    }
+
     private func stop() {
+        resumeAutoBrightness()
         timer?.invalidate()
         timer = nil
         motion = .none
