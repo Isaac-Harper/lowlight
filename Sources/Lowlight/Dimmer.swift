@@ -51,7 +51,7 @@ enum Setting: Equatable {
 // macOS clamps nonzero brightness to a PWM floor, but fades interpolate the raw duty
 // all the way to 0. Fade down, read the live duty, and hold it with slow fades.
 final class Dimmer {
-    static let stepChoices = [5, 10, 20]
+    static let stepChoices = Array(2...20)
 
     static var subSteps: Int {
         get {
