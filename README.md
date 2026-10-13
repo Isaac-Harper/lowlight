@@ -4,6 +4,8 @@ Dim your MacBook keyboard backlight below the lowest setting macOS allows.
 
 A menu bar slider with ten steps under the macOS minimum and the normal range above it. Changing keyboard brightness in Control Center takes back over. To turn the backlight off from a step below the minimum, use Lowlight's slider.
 
+Automatic keyboard brightness keeps working. Lowlight pauses it only while holding a step below the minimum, and turns it back on when you return to the normal range, turn the backlight off, or quit.
+
 <img src="docs/menu.png" width="263" alt="Lowlight menu">
 
 ## Requirements
