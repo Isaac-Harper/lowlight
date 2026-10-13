@@ -8,6 +8,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let valueLabel = NSTextField(labelWithString: "")
     private var loginItem: NSMenuItem!
     private var levelItems: [NSMenuItem] = []
+    private let levels = NSMenu()
+    private var stepItems: [NSMenuItem] = []
     private var updateItem: NSMenuItem!
     private let updater = Updater()
     private var releaseURL: URL?
@@ -26,13 +28,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let sliderItem = NSMenuItem()
         sliderItem.view = makeSliderView()
         menu.addItem(sliderItem)
-        let levels = NSMenu()
-        for setting in [Setting.off] + (1...Dimmer.subSteps).map(Setting.sub) {
-            let item = addItem(to: levels, setting.menuTitle, #selector(pickLevel))
-            item.representedObject = setting.position
-            levelItems.append(item)
-        }
+        buildLevels()
         menu.addItem(withTitle: "Set Level", action: nil, keyEquivalent: "").submenu = levels
+        let steps = NSMenu()
+        for n in Dimmer.stepChoices {
+            let item = addItem(to: steps, "\(n)", #selector(pickSteps))
+            item.tag = n
+            stepItems.append(item)
+        }
+        menu.addItem(withTitle: "Steps Below Minimum", action: nil, keyEquivalent: "").submenu = steps
         menu.addItem(.separator())
         updateItem = addItem(to: menu, "", #selector(openRelease))
         updateItem.isHidden = true
@@ -143,6 +147,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func menuWillOpen(_ menu: NSMenu) {
         show(currentSetting)
         loginItem.state = LoginItem.isEnabled ? .on : .off
+        stepItems.forEach { $0.state = $0.tag == Dimmer.subSteps ? .on : .off }
     }
 
     private var currentSetting: Setting {
@@ -175,6 +180,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         markLevel(setting)
     }
 
+    private func buildLevels() {
+        levels.removeAllItems()
+        levelItems = ([Setting.off] + (1...Dimmer.subSteps).map(Setting.sub)).map { setting in
+            let item = addItem(to: levels, setting.menuTitle, #selector(pickLevel))
+            item.representedObject = setting.position
+            return item
+        }
+    }
+
     private func markLevel(_ setting: Setting) {
         levelItems.forEach { $0.state = $0.representedObject as? Double == setting.position ? .on : .off }
     }
@@ -195,6 +209,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         dimmer.apply(setting)
         UserDefaults.standard.set(position, forKey: "position")
         show(setting)
+    }
+
+    @objc private func pickSteps(_ sender: NSMenuItem) {
+        guard sender.tag != Dimmer.subSteps else { return }
+        let position = currentSetting.position
+        Dimmer.subSteps = sender.tag
+        buildLevels()
+        let setting = Setting(position: position)
+        if case .sub = setting {
+            dimmer.apply(setting)
+            UserDefaults.standard.set(setting.position, forKey: "position")
+        }
+        show(currentSetting)
     }
 
     @objc private func toggleLogin() {

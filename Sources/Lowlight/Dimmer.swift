@@ -51,9 +51,25 @@ enum Setting: Equatable {
 // macOS clamps nonzero brightness to a PWM floor, but fades interpolate the raw duty
 // all the way to 0. Fade down, read the live duty, and hold it with slow fades.
 final class Dimmer {
-    static let subSteps = 10
+    static let stepChoices = [5, 10, 20]
 
-    private static let stepFractions: [Double] = [2, 4, 7, 11, 15, 20, 26, 32, 39, 46].map { $0 / 54 }
+    static var subSteps: Int {
+        get {
+            let n = UserDefaults.standard.integer(forKey: "subSteps")
+            return stepChoices.contains(n) ? n : 10
+        }
+        set { UserDefaults.standard.set(newValue, forKey: "subSteps") }
+    }
+
+    private static let tenStepFractions: [Double] = [2, 4, 7, 11, 15, 20, 26, 32, 39, 46].map { $0 / 54 }
+
+    private static func stepFraction(_ step: Int) -> Double {
+        let n = subSteps
+        let i = max(1, min(n, step))
+        if n == 10 { return tenStepFractions[i - 1] }
+        let t = Double(i - 1) / Double(n - 1)
+        return (2 + 44 * pow(t, 1.5)) / 54
+    }
 
     private static let approachMs = 400.0
 
@@ -137,7 +153,7 @@ final class Dimmer {
     }
 
     private func duty(for step: Int) -> Int {
-        let fraction = Dimmer.stepFractions[max(0, min(Dimmer.subSteps - 1, step - 1))]
+        let fraction = Dimmer.stepFraction(step)
         return max(2, min(floorDuty - 1, Int((fraction * Double(floorDuty)).rounded())))
     }
 
